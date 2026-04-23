@@ -147,7 +147,7 @@
     <script type="module">
         import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
 
-        const API_KEY = CONFIG.API_KEY; 
+      
         
         async function callGemini(prompt, img) {
   const hist = document.getElementById('medical-history').value;
@@ -275,21 +275,7 @@
             showToast("Report Saved");
         };
 
-        async function callGemini(prompt, img) {
-            const model = genAI.getGenerativeModel({ 
-                model: "gemini-flash-latest",
-                systemInstruction: "You are MedBot. Provide Assessment, Suggested Steps, and Precautions. Be clinical yet friendly. Use short sentences. Always include a legal disclaimer at the very end."
-            });
-            const hist = document.getElementById('medical-history').value;
-            const user = document.getElementById('p-name').value;
-            const context = `Patient: ${user}\nBackground: ${hist}\n\nMessage: ${prompt}`;
-            
-            const parts = [{ text: context }];
-            if (img) parts.push({ inlineData: { mimeType: "image/png", data: img.split(',')[1] } });
-
-            const result = await model.generateContent({ contents: [{ role: 'user', parts }] });
-            return result.response.text();
-        }
+        
 
         document.getElementById('chat-form').onsubmit = async (e) => {
             e.preventDefault();
