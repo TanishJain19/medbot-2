@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedBot Pro | Personal Health Assistant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root { --brand-cyan: #06b6d4; --bg-dark: #020617; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: var(--bg-dark); color: #f1f5f9; margin: 0; overflow-x: hidden; }
+        
+        /* Visual Effects */
+        .glow { position: absolute; width: 80vw; height: 80vw; background: radial-gradient(circle, rgba(6, 182, 212, 0.07) 0%, rgba(6, 182, 212, 0) 70%); border-radius: 50%; filter: blur(120px); z-index: -1; pointer-events: none; }
+        .glass { background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.08); }
+        .hidden-view { display: none !important; }
+
+        /* Clinical AI Response Formatting */
+        .prose h3 { color: #22d3ee; font-size: 0.85rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; margin-top: 1.5rem; margin-bottom: 0.6rem; border-bottom: 1px solid rgba(34, 211, 238, 0.15); padding-bottom: 4px; }
+        .prose ul { list-style-type: none; padding-left: 0; margin-top: 0.5rem; }
+        .prose li { position: relative; padding-left: 1.5rem; margin-bottom: 0.6rem; font-size: 0.88rem; color: #cbd5e1; line-height: 1.6; }
+        .prose li::before { content: "→"; position: absolute; left: 0; color: #06b6d4; font-weight: bold; }
+        .prose p { font-size: 0.92rem; color: #94a3b8; margin-bottom: 0.8rem; }
+        .disclaimer-text { font-size: 0.75rem; color: #64748b; margin-top: 2rem; padding-top: 1rem; border-top: 1px dashed rgba(255,255,255,0.1); font-style: italic; }
+
+        /* Component Styling */
+        #sidebar { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 50; }
+        @media (max-width: 1024px) {
+            #sidebar { position: fixed; transform: translateX(-100%); height: 100%; width: 300px; }
+            #sidebar.open { transform: translateX(0); }
+        }
+        .chat-bubble-assistant { background: rgba(30, 41, 59, 0.3); border: 1px solid rgba(255,255,255,0.05); border-radius: 24px 24px 24px 4px; padding: 1.5rem; }
+        .chat-bubble-user { background: #0891b2; color: white; border-radius: 24px 24px 4px 24px; padding: 1.25rem; font-size: 0.9rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        .scanning-line { position: absolute; width: 100%; height: 2px; background: linear-gradient(90deg, transparent, var(--brand-cyan), transparent); animation: scan 3s infinite; z-index: 20; }
+        @keyframes scan { 0% { top: 0%; } 100% { top: 100%; } }
+        .custom-scroll::-webkit-scrollbar { width: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <div id="home-view" class="h-screen w-full flex flex-col items-center justify-center px-6 bg-[#020617] relative overflow-hidden text-center">
+        <div class="glow top-[-20%] left-[-10%]"></div>
+        <div class="glow bottom-[-20%] right-[-10%]"></div>
+        
+        <div class="max-w-5xl w-full flex flex-col items-center animate-in fade-in zoom-in duration-1000">
+            <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-cyan-500/20 bg-cyan-500/5 mb-8">
+                <div class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></div>
+                <span class="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-400">Assistant Online</span>
+            </div>
+
+            <h1 class="text-7xl md:text-[9rem] font-black tracking-tighter mb-4 text-white leading-none">
+                MedBot<span class="text-cyan-500">.</span>Pro
+            </h1>
+            
+            <p class="text-slate-400 text-sm md:text-lg max-w-xl font-light tracking-wide mb-12 px-4">
+                Personal health assistant. Get instant medical analysis, photo symptom checks, and clinical guidance in a private environment.
+            </p>
+
+            <button id="launch-btn" class="group relative px-14 py-6 bg-white text-black rounded-full font-extrabold uppercase tracking-[0.2em] text-xs hover:scale-105 transition-all duration-500 shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)]">
+                <span class="relative z-10 flex items-center gap-3">
+                    Start Assistant <i data-lucide="arrow-right" class="w-4 h-4 group-hover:translate-x-1 transition-transform"></i>
+                </span>
+            </button>
+
+            <div class="absolute bottom-12 flex flex-wrap justify-center gap-8 md:gap-12 text-[9px] font-bold uppercase tracking-[0.3em] text-slate-600">
+                <span>Encrypted Data</span>
+                <span>Photo Synthesis</span>
+                <span>Clinical Format</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="app-view" class="hidden-view flex h-screen w-full overflow-hidden relative">
+        
+        <aside id="sidebar" class="w-80 bg-[#070b14] border-r border-white/5 flex flex-col shrink-0">
+            <div class="p-6 flex-1 overflow-y-auto space-y-6 custom-scroll">
+                <div class="flex items-center justify-between mb-8">
+                    <span class="font-black italic text-sm tracking-widest text-cyan-400">MEDBOT PRO</span>
+                    <button onclick="toggleMenu()" class="lg:hidden text-slate-400"><i data-lucide="x"></i></button>
+                </div>
+
+                <div class="flex bg-white/5 p-1 rounded-xl mb-6">
+                    <button onclick="setTab('context')" id="tab-context" class="flex-1 py-2 text-[10px] font-bold uppercase rounded-lg bg-cyan-600">Health info</button>
+                    <button onclick="setTab('profile')" id="tab-profile" class="flex-1 py-2 text-[10px] font-bold uppercase rounded-lg text-slate-500 ml-1">My Profile</button>
+                </div>
+
+                <div id="view-context" class="space-y-4">
+                    <label class="text-[10px] font-bold uppercase text-cyan-500/60 ml-1">Medical Background</label>
+                    <textarea id="medical-history" placeholder="Example: Allergic to penicillin, asthmatic..." class="w-full h-40 bg-white/5 border border-white/10 rounded-2xl p-4 text-xs text-white focus:outline-none focus:border-cyan-500/50 resize-none"></textarea>
+                    
+                    <button onclick="findHospital()" class="w-full flex items-center justify-center gap-2 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all">
+                        <i data-lucide="map-pin" class="w-4 h-4 text-cyan-500"></i> Find a Hospital
+                    </button>
+                </div>
+
+                <div id="view-profile" class="hidden space-y-4">
+                    <input type="text" id="p-name" placeholder="Full Name" class="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-xs text-white outline-none">
+                    <input type="text" id="p-age" placeholder="Age / Gender" class="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-xs text-white outline-none">
+                    <button onclick="saveProfile()" class="w-full py-3 bg-cyan-600 rounded-xl text-[10px] font-bold uppercase">Update Profile</button>
+                </div>
+
+                <div class="pt-6 border-t border-white/5 space-y-3">
+                    <button onclick="downloadTranscript()" class="w-full flex items-center justify-between p-4 glass rounded-xl text-[10px] font-bold uppercase text-slate-400">Save History <i data-lucide="download" class="w-4 h-4 text-cyan-500"></i></button>
+                    <button onclick="location.reload()" class="w-full p-4 text-[10px] font-bold uppercase text-red-500/50 hover:text-red-500 transition-colors">Disconnect</button>
+                </div>
+            </div>
+        </aside>
+
+        <main class="flex-1 flex flex-col relative bg-[#020617] min-w-0">
+            <header class="h-16 border-b border-white/5 flex items-center justify-between px-6 bg-[#020617]/80 backdrop-blur-md">
+                <button onclick="toggleMenu()" class="lg:hidden p-2 text-white bg-white/5 rounded-lg"><i data-lucide="menu" class="w-5 h-5"></i></button>
+                <div class="flex items-center gap-2">
+                    <div id="status-dot" class="w-2 h-2 rounded-full bg-cyan-500"></div>
+                    <span id="status-text" class="text-[9px] font-bold text-slate-400 uppercase tracking-widest tracking-[0.2em]">Ready to assist</span>
+                </div>
+                <div class="hidden md:block px-3 py-1 bg-cyan-500/10 border border-cyan-500/20 rounded text-[8px] text-cyan-400 font-bold uppercase">Clinical Analysis Mode</div>
+            </header>
+
+            <div id="chat-container" class="flex-1 overflow-y-auto p-6 md:p-12 space-y-8 custom-scroll"></div>
+
+            <div class="p-6 md:p-10 bg-gradient-to-t from-[#020617] via-[#020617] to-transparent">
+                <div class="max-w-4xl mx-auto relative">
+                    <div id="image-preview-container" class="hidden absolute bottom-full mb-4">
+                        <div class="relative w-44 h-44 rounded-2xl overflow-hidden border-2 border-cyan-500 shadow-2xl">
+                            <div class="scanning-line"></div>
+                            <img id="image-preview" src="" class="w-full h-full object-cover">
+                            <button onclick="clearImage()" class="absolute top-2 right-2 p-1 bg-black/60 rounded-full text-white"><i data-lucide="x" class="w-3 h-3"></i></button>
+                        </div>
+                    </div>
+
+                    <form id="chat-form" class="glass rounded-[1.5rem] md:rounded-[2.5rem] p-2 flex items-center gap-2 shadow-2xl border-white/10">
+                        <button type="button" onclick="document.getElementById('file-input').click()" class="p-3 md:p-4 text-slate-500 hover:text-cyan-400"><i data-lucide="camera" class="w-5 h-5"></i></button>
+                        <input type="file" id="file-input" class="hidden" accept="image/*" onchange="handleImage(event)">
+                        <input type="text" id="user-input" placeholder="Describe symptoms or upload a photo..." class="flex-1 bg-transparent border-none focus:ring-0 text-sm md:text-base py-3 text-white outline-none px-2">
+                        <button type="submit" class="p-3 md:p-5 bg-cyan-600 text-white rounded-xl md:rounded-full hover:bg-cyan-500 transition-all shadow-lg"><i data-lucide="send" class="w-5 h-5"></i></button>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="toast-container" class="fixed bottom-24 right-6 z-[200] flex flex-col gap-2"></div>
+    <script src="config.js"></script>
+    <script type="module">
+        import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
+
+        const API_KEY = CONFIG.API_KEY; 
+        
+        const genAI = new GoogleGenerativeAI(API_KEY);
+        let messages = [];
+        let attachedImageBase64 = null;
+
+        // Navigation
+        window.launchApp = () => {
+            document.getElementById('home-view').classList.add('hidden-view');
+            const app = document.getElementById('app-view');
+            app.classList.remove('hidden-view');
+            app.style.display = 'flex';
+            messages.push({ role: 'assistant', text: "### Clinical Session Initialized\nI am MedBot. Please describe your symptoms or provide a photo for analysis. My responses follow a structured format for clarity." });
+            renderMessages();
+            lucide.createIcons();
+        };
+
+        window.toggleMenu = () => document.getElementById('sidebar').classList.toggle('open');
+        window.setTab = (view) => {
+            document.getElementById('view-context').classList.toggle('hidden', view !== 'context');
+            document.getElementById('view-profile').classList.toggle('hidden', view !== 'profile');
+            document.getElementById('tab-context').className = view === 'context' ? "flex-1 py-2 text-[10px] font-bold uppercase rounded-lg bg-cyan-600" : "flex-1 py-2 text-[10px] font-bold uppercase rounded-lg text-slate-500";
+            document.getElementById('tab-profile').className = view === 'profile' ? "flex-1 py-2 text-[10px] font-bold uppercase rounded-lg bg-cyan-600" : "flex-1 py-2 text-[10px] font-bold uppercase rounded-lg text-slate-500 ml-1";
+        };
+
+        const showToast = (msg) => {
+            const toast = document.createElement('div');
+            toast.className = "bg-cyan-600 text-white px-4 py-2 rounded-lg text-[10px] font-bold uppercase shadow-2xl animate-in slide-in-from-right-10";
+            toast.innerText = msg;
+            document.getElementById('toast-container').appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        };
+
+        window.saveProfile = () => {
+            localStorage.setItem('medbot_user', document.getElementById('p-name').value);
+            showToast("Profile Updated");
+        };
+
+        window.findHospital = () => {
+            if (navigator.geolocation) {
+                showToast("Requesting location...");
+                navigator.geolocation.getCurrentPosition((pos) => {
+                    const url = `https://www.google.com/maps/search/hospital/@${pos.coords.latitude},${pos.coords.longitude},14z`;
+                    window.open(url, '_blank');
+                }, () => showToast("Access Denied"));
+            }
+        };
+
+        // File Handling
+        window.handleImage = (e) => {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                attachedImageBase64 = reader.result;
+                document.getElementById('image-preview').src = reader.result;
+                document.getElementById('image-preview-container').classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        };
+
+        window.clearImage = () => {
+            attachedImageBase64 = null;
+            document.getElementById('image-preview-container').classList.add('hidden');
+            document.getElementById('file-input').value = '';
+        };
+
+        const renderMessages = () => {
+            const container = document.getElementById('chat-container');
+            container.innerHTML = messages.map(m => `
+                <div class="flex ${m.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in duration-300">
+                    <div class="max-w-[90%] md:max-w-[80%] ${m.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-assistant text-slate-200'}">
+                        <div class="prose prose-invert">${marked.parse(m.text)}</div>
+                    </div>
+                </div>
+            `).join('');
+            container.scrollTop = container.scrollHeight;
+        };
+
+        // FIXED SAVE HISTORY
+        window.downloadTranscript = () => {
+            if (messages.length === 0) return showToast("No chat data found");
+            const timestamp = new Date().toLocaleString();
+            let report = `MEDBOT CLINICAL REPORT\nGenerated: ${timestamp}\n---------------------------\n\n`;
+            messages.forEach(m => {
+                const role = m.role === 'user' ? 'PATIENT' : 'MEDBOT';
+                const cleanText = m.text.replace(/[#*]/g, '');
+                report += `[${role}]:\n${cleanText}\n\n`;
+            });
+            const blob = new Blob([report], { type: 'text/plain' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `MedBot-Report-${Date.now()}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            showToast("Report Saved");
+        };
+
+        async function callGemini(prompt, img) {
+            const model = genAI.getGenerativeModel({ 
+                model: "gemini-flash-latest",
+                systemInstruction: "You are MedBot. Provide Assessment, Suggested Steps, and Precautions. Be clinical yet friendly. Use short sentences. Always include a legal disclaimer at the very end."
+            });
+            const hist = document.getElementById('medical-history').value;
+            const user = document.getElementById('p-name').value;
+            const context = `Patient: ${user}\nBackground: ${hist}\n\nMessage: ${prompt}`;
+            
+            const parts = [{ text: context }];
+            if (img) parts.push({ inlineData: { mimeType: "image/png", data: img.split(',')[1] } });
+
+            const result = await model.generateContent({ contents: [{ role: 'user', parts }] });
+            return result.response.text();
+        }
+
+        document.getElementById('chat-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const input = document.getElementById('user-input');
+            const text = input.value.trim();
+            if (!text && !attachedImageBase64) return;
+
+            messages.push({ role: 'user', text: text || "[Attached Imagery]" });
+            const currentImg = attachedImageBase64;
+            input.value = ''; clearImage();
+            renderMessages();
+
+            document.getElementById('status-text').innerText = "Synthesizing...";
+            document.getElementById('status-dot').classList.add('animate-pulse');
+
+            try {
+                const res = await callGemini(text || "Interpret this photo.", currentImg);
+                messages.push({ role: 'assistant', text: res });
+            } catch (err) {
+                messages.push({ role: 'assistant', text: "### Connection Error\nPlease verify API key status." });
+            } finally {
+                document.getElementById('status-text').innerText = "Ready to assist";
+                document.getElementById('status-dot').classList.remove('animate-pulse');
+                renderMessages();
+            }
+        };
+
+        document.getElementById('launch-btn').onclick = window.launchApp;
+        lucide.createIcons();
+    </script>
+</body>
+</html>
